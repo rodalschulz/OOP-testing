@@ -4,7 +4,7 @@ const randomChoice = (array) => {
 };
 
 class Room {
-  persons = [];
+  persons = {};
   currentOccupancy = 0;
   full = false;
   locked = false;
@@ -16,27 +16,23 @@ class Room {
   }
 
   addDefaultPerson = (person) => {
-    const personIsHere = this.persons.some(
-      (presentPerson) => presentPerson.name === person.name
-    );
+    const personIsHere = this?.persons[person.name];
 
     if (!personIsHere) {
-      this.persons.push(person);
+      this.persons[person.name] = person;
       person.currentRoom = this;
-      this.currentOccupancy = this.persons.length;
+      this.currentOccupancy = Object.keys(this.persons).length;
     }
   };
 
   processEntranceRequest = (person) => {
     if (!this.locked && !this.full) {
       person.currentRoom.currentOccupancy -= 1;
-      const idx = person.currentRoom.persons.some((psn, idx) =>
-        psn.name === person.name ? idx : null
-      );
-      person.currentRoom.persons.splice(idx, 1);
-      this.persons.push(person);
+
+      delete person.currentRoom.persons[person.name];
+      this.persons[person.name] = person;
       person.currentRoom = this;
-      this.currentOccupancy = this.persons.length;
+      this.currentOccupancy = Object.keys(this.persons).length;
     } else if (this.locked) {
       console.log(
         `${person.name} tried to enter the ${this.name}, but it's locked.`
@@ -50,9 +46,10 @@ class Room {
 }
 
 class Person {
-  chattingWith = [];
+  chattingWith = {};
   currentRoom = null;
-  chatRequestors = [];
+  chatRequestors = {};
+  rejectedBy = {};
 
   constructor(name, age, sex) {
     this.name = name;
@@ -78,13 +75,12 @@ class Person {
   };
 
   tryChat = (person) => {
-    const isAlreadyChatting = this.chattingWith.some(
-      (psn) => psn.name === person.name
-    );
+    const isAlreadyChatting = this?.chattingWith[person.name];
+
     if (!isAlreadyChatting) {
       if (person.currentRoom.name === this.currentRoom.name) {
-        person.chatRequestors.push(this);
-        person.processChatRequestors();
+        person.chatRequestors[this.name] = this;
+        person.processChatRequestor();
       }
     } else {
       console.log(
@@ -93,32 +89,43 @@ class Person {
     }
   };
 
-  processChatRequestors = () => {
-    if (this.chatRequestors.length > 0) {
-      for (let i = 0; i < this.chatRequestors.length; i++) {
+  processChatRequestor = () => {
+    if (Object.keys(this.chatRequestors).length > 0) {
+      for (let i = 0; i < Object.keys(this.chatRequestors).length; i++) {
         const randomResponse = randomChoice([true, false]);
         if (randomResponse) {
-          this.chattingWith.push(this.chatRequestors[i]);
-          this.chatRequestors[i].chattingWith.push(this);
+          this.chattingWith[Object.keys(this.chatRequestors)[i]] =
+            Object.values(this.chatRequestors)[i];
+          Object.values(this.chatRequestors)[i].chattingWith[this.name] = this;
           console.log(
-            `${this.name} has responded to ${this.chatRequestors[i].name} and are now chatting.`
+            `${this.name} has responded to ${
+              Object.values(this.chatRequestors)[i].name
+            } and are now chatting.`
           );
         } else {
+          Object.values(this.chatRequestors)[i].rejectedBy[this.name] = this; // do i even need to add the whole object "this", could be an empty string
           console.log(
-            `${this.name} has ignored ${this.chatRequestors[i].name}'s chat attempt.`
+            `${this.name} has ignored ${
+              Object.values(this.chatRequestors)[i].name
+            }'s chat attempt.`
           );
         }
-        this.chatRequestors.splice(i, 1);
+        delete this.chatRequestors[Object.keys(this.chatRequestors)[i]];
         i--;
       }
     }
   };
 
-  beSocial = () => {
-    // if (this.currentRoom.currentOccupancy > 1) {
-    //   this.
-    // }
-  };
+  // beSocial = (allRoomsObj) => {
+  //   if (this.currentRoom.currentOccupancy <= 1) {
+  //     this.explore(allRoomsObj);
+  //   } else {
+  //     const randomPerson = randomChoice(this.currentRoom.persons);
+  //     if (randomPerson.name !== this.name) {
+  //       this.tryChat(randomPerson);
+  //     }
+  //   }
+  // };
 }
 
 // SESSION DATA
