@@ -95,14 +95,12 @@ class Person {
   processChatRequestor = (allChatPoolsObj) => {
     if (Object.keys(this.chatRequestors).length > 0) {
       for (let i = 0; i < Object.keys(this.chatRequestors).length; i++) {
-        const randomResponse = randomChoice([true, false]);
         const requestorObj = Object.values(this.chatRequestors)[i];
         const requestorName = Object.keys(this.chatRequestors)[i];
+        const randomResponse = randomChoice([true, false]);
         if (randomResponse) {
-          // this.chattingWith[Object.keys(this.chatRequestors)[i]] =
-          //   Object.values(this.chatRequestors)[i];
-          // Object.values(this.chatRequestors)[i].chattingWith[this.name] = this;
           if (this.currentChatPool === "") {
+            // Create a new ChatPool
             const newChatPoolName = this.name + "-" + requestorName;
             allChatPoolsObj[newChatPoolName] = new ChatPool(newChatPoolName);
             allChatPoolsObj[newChatPoolName].members[this.name] = this;
@@ -128,6 +126,7 @@ class Person {
             `${this.name} has rejected ${requestorObj.name}'s chat attempt.`
           );
         }
+
         delete this.chatRequestors[requestorName];
         i--;
       }
@@ -135,26 +134,28 @@ class Person {
   };
 
   beSocial = (allRoomsObj, allChatPoolsObj) => {
+    const personsInRoom = this.currentRoom.persons;
     if (this.currentRoom.currentOccupancy <= 1) {
       this.explore(allRoomsObj);
     } else if (this.currentChatPool === "") {
-      this.chatCandidates = Object.keys(this.currentRoom.persons).filter(
+      // Filter out persons who have rejected and who are not self
+      this.chatCandidates = Object.keys(personsInRoom).filter(
         (name) =>
           !Object.keys(this.rejectedBy).includes(name) && name !== this.name
       );
+      // Filter out persons with full ChatPools
+      this.chatCandidates = this.chatCandidates.filter(
+        (name) =>
+          personsInRoom[name].currentChatPool === "" ||
+          Object.keys(
+            allChatPoolsObj[personsInRoom[name].currentChatPool].members
+          ).length <
+            allChatPoolsObj[personsInRoom[name].currentChatPool].personLimit
+      );
+
       if (this.chatCandidates.length !== 0) {
         const randomCandidate = randomChoice(this.chatCandidates);
-
-        // candidateChattingWith = Object.keys(
-        //   this.currentRoom.persons[randomCandidate].chattingWith
-        // ).length;
-        // if (candidateChattingWith > 0) {
-        // }
-
-        this.tryChat(
-          this.currentRoom.persons[randomCandidate],
-          allChatPoolsObj
-        );
+        this.tryChat(personsInRoom[randomCandidate], allChatPoolsObj);
       } else {
         this.explore(allRoomsObj);
       }
@@ -165,6 +166,7 @@ class Person {
 class ChatPool {
   name;
   members = {};
+  personLimit = 3;
 
   constructor(name) {
     this.name = name;
@@ -198,6 +200,7 @@ const main = () => {
   console.log("Kitchen: ", r.kitchen.currentOccupancy);
   p.Rodrigo.beSocial(r, cp);
   p.Juan.beSocial(r, cp);
+  p.Manuel.beSocial(r, cp);
   console.log("ChatPools", cp);
 
   console.log("-------------");
