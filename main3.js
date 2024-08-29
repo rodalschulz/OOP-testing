@@ -50,6 +50,7 @@ class Person {
   currentRoom = null;
   chatRequestors = {};
   rejectedBy = {};
+  chatCandidates = [];
 
   constructor(name, age, sex) {
     this.name = name;
@@ -68,11 +69,11 @@ class Person {
     this.reqRoomEntrance(allRoomsObj[randomAdjacent]);
   };
 
-  findOthers = (allRoomsObj) => {
-    if (this.currentRoom.currentOccupancy <= 1) {
-      this.explore(allRoomsObj);
-    }
-  };
+  // findOthers = (allRoomsObj) => {
+  //   if (this.currentRoom.currentOccupancy <= 1) {
+  //     this.explore(allRoomsObj);
+  //   }
+  // };
 
   tryChat = (person) => {
     const isAlreadyChatting = this?.chattingWith[person.name];
@@ -100,12 +101,12 @@ class Person {
           console.log(
             `${this.name} has responded to ${
               Object.values(this.chatRequestors)[i].name
-            } and are now chatting.`
+            }'s chat attempt and both are now chatting.`
           );
         } else {
-          Object.values(this.chatRequestors)[i].rejectedBy[this.name] = this; // do i even need to add the whole object "this", could be an empty string
+          Object.values(this.chatRequestors)[i].rejectedBy[this.name] = ""; // do i even need to add the whole object "this", could be an empty string
           console.log(
-            `${this.name} has ignored ${
+            `${this.name} has rejected ${
               Object.values(this.chatRequestors)[i].name
             }'s chat attempt.`
           );
@@ -116,22 +117,30 @@ class Person {
     }
   };
 
-  // beSocial = (allRoomsObj) => {
-  //   if (this.currentRoom.currentOccupancy <= 1) {
-  //     this.explore(allRoomsObj);
-  //   } else {
-  //     const randomPerson = randomChoice(this.currentRoom.persons);
-  //     if (randomPerson.name !== this.name) {
-  //       this.tryChat(randomPerson);
-  //     }
-  //   }
-  // };
+  beSocial = (allRoomsObj) => {
+    if (this.currentRoom.currentOccupancy <= 1) {
+      this.explore(allRoomsObj);
+    } else if (Object.keys(this.chattingWith).length === 0) {
+      this.chatCandidates = Object.keys(this.currentRoom.persons).filter(
+        (name) =>
+          !Object.keys(this.rejectedBy).includes(name) && name !== this.name
+      );
+      if (this.chatCandidates.length !== 0) {
+        const randomCandidate = randomChoice(this.chatCandidates);
+        this.tryChat(this.currentRoom.persons[randomCandidate]);
+      } else {
+        this.explore(allRoomsObj);
+      }
+    }
+  };
 }
 
-// SESSION DATA
+// SESSION DATA ---------------
+//    Assets
 const p = {
   Rodrigo: new Person("Rodrigo", 29, true),
   Juan: new Person("Juan", 28, true),
+  Manuel: new Person("Manuel", 29, true),
 };
 const r = {
   outside: new Room("outside", 10, ["living", "dining"]),
@@ -139,8 +148,10 @@ const r = {
   dining: new Room("dining", 10, ["outside", "kitchen"]),
   kitchen: new Room("kitchen", 10, ["dining"]),
 };
+//    States
 r.outside.addDefaultPerson(p.Rodrigo);
-r.outside.addDefaultPerson(p.Juan);
+r.kitchen.addDefaultPerson(p.Juan);
+r.dining.addDefaultPerson(p.Manuel);
 // r.kitchen.locked = true;
 
 const main = () => {
@@ -148,8 +159,8 @@ const main = () => {
   console.log("Living: ", r.living.currentOccupancy);
   console.log("Dining: ", r.dining.currentOccupancy);
   console.log("Kitchen: ", r.kitchen.currentOccupancy);
-  p.Rodrigo.tryChat(p.Juan);
-  // p.Juan.findOthers(r);
+  p.Rodrigo.beSocial(r);
+  p.Juan.beSocial(r);
 
   console.log("-------------");
 };
