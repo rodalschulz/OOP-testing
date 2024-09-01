@@ -51,6 +51,7 @@ class Person {
   chatRequestors = {};
   rejectedBy = {};
   chatCandidates = [];
+  relationships = {};
 
   constructor(name, age, sex) {
     this.name = name;
@@ -133,6 +134,20 @@ class Person {
     }
   };
 
+  evolveRelationship = (allChatPoolsObj) => {
+    if (this.currentChatPool !== "") {
+      const personsInChatPool = Object.keys(
+        allChatPoolsObj[this.currentChatPool].members
+      ).filter((psn) => psn !== this.name);
+      const randomPersonName = randomChoice(personsInChatPool);
+      if (this.relationships[randomPersonName]) {
+        this.relationships[randomPersonName] += 2;
+      } else {
+        this.relationships[randomPersonName] = 2;
+      }
+    }
+  };
+
   beSocial = (allRoomsObj, allChatPoolsObj) => {
     const personsInRoom = this.currentRoom.persons;
     if (this.currentRoom.currentOccupancy <= 1) {
@@ -159,6 +174,8 @@ class Person {
       } else {
         this.explore(allRoomsObj);
       }
+    } else {
+      this.evolveRelationship(allChatPoolsObj);
     }
   };
 }
@@ -184,12 +201,13 @@ const r = {
   outside: new Room("outside", 10, ["living", "dining"]),
   living: new Room("living", 10, ["outside"]),
   dining: new Room("dining", 10, ["outside", "kitchen"]),
-  kitchen: new Room("kitchen", 10, ["dining"]),
+  kitchen: new Room("kitchen", 10, ["dining", "laundry"]),
+  laundry: new Room("laundry", 10, ["kitchen"]),
 };
 const cp = {};
-//    States
+//    Initial States
 r.outside.addDefaultPerson(p.Rodrigo);
-r.kitchen.addDefaultPerson(p.Juan);
+r.laundry.addDefaultPerson(p.Juan);
 r.dining.addDefaultPerson(p.Manuel);
 // r.kitchen.locked = true;
 
@@ -198,6 +216,8 @@ const main = () => {
   console.log("Living: ", r.living.currentOccupancy);
   console.log("Dining: ", r.dining.currentOccupancy);
   console.log("Kitchen: ", r.kitchen.currentOccupancy);
+  console.log("Laundry: ", r.laundry.currentOccupancy);
+  console.log("Rod's Relationships: ", p.Rodrigo.relationships);
   p.Rodrigo.beSocial(r, cp);
   p.Juan.beSocial(r, cp);
   p.Manuel.beSocial(r, cp);
@@ -210,7 +230,7 @@ const timeOut = () => {
   setTimeout(() => {
     main();
     timeOut();
-  }, 2000);
+  }, 3000);
 };
 
 timeOut();
