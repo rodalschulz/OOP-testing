@@ -1,6 +1,28 @@
+// HOUSE PARTY SIM
+
 const randomChoice = (array) => {
   const randomIndex = Math.floor(Math.random() * array.length);
   return array[randomIndex];
+};
+
+const randomChoiceProb = (array, probabilities) => {
+  if (array.length !== probabilities.length) {
+    throw new Error("Array and probabilities must have the same length.");
+  }
+  const sum = probabilities.reduce((acc, prob) => acc + prob, 0);
+  const tolerance = 1e-10;
+  if (Math.abs(sum - 1) > tolerance) {
+    throw new Error("Probabilities must sum up to 1.");
+  }
+
+  const random = Math.random();
+  let cumulativeProbability = 0;
+  for (let i = 0; i < array.length; i++) {
+    cumulativeProbability += probabilities[i];
+    if (random < cumulativeProbability) {
+      return array[i];
+    }
+  }
 };
 
 class Room {
@@ -9,9 +31,10 @@ class Room {
   full = false;
   locked = false;
 
-  constructor(name, maxCapacity, adjacentRooms) {
+  constructor(name, maxCapacity, type, adjacentRooms) {
     this.name = name;
     this.maxCapacity = maxCapacity;
+    this.type = type;
     this.adjacentRooms = adjacentRooms;
   }
 
@@ -52,6 +75,7 @@ class Person {
   rejectedBy = {};
   chatCandidates = [];
   relationships = {};
+  pairedUpWith = "";
 
   constructor(name, age, sex) {
     this.name = name;
@@ -69,12 +93,6 @@ class Person {
     const randomAdjacent = randomChoice(this.currentRoom.adjacentRooms);
     this.reqRoomEntrance(allRoomsObj[randomAdjacent]);
   };
-
-  // findOthers = (allRoomsObj) => {
-  //   if (this.currentRoom.currentOccupancy <= 1) {
-  //     this.explore(allRoomsObj);
-  //   }
-  // };
 
   tryChat = (person, allChatPoolsObj) => {
     const isAlreadyChatting =
@@ -110,7 +128,7 @@ class Person {
             this.currentChatPool = newChatPoolName;
             requestorObj.currentChatPool = newChatPoolName;
             console.log(
-              `${this.name} has accepted ${requestorObj.name}'s chat attempt and both are now chatting.`
+              `${this.name} has accepted ${requestorObj.name}'s chat attempt and both are now chatting in the ${this.currentRoom.name}.`
             );
           } else {
             // Add to an already existing ChatPool
@@ -118,7 +136,7 @@ class Person {
               requestorObj;
             requestorObj.currentChatPool = this.currentChatPool;
             console.log(
-              `${this.name} has accepted ${requestorObj.name}'s chat attempt and ${requestorObj.name} has been added to the Chat Pool`
+              `${this.name} has accepted ${requestorObj.name}'s chat attempt and ${requestorObj.name} has been added to the Chat Pool.`
             );
           }
         } else {
@@ -134,6 +152,31 @@ class Person {
     }
   };
 
+  attemptMove = (personsNamesInChatPool, allChatPoolsObj) => {
+    if (this.sex === false || this.pairedUpWith !== "") return; // if fem or already paired up
+    const femNamesInChatPool = personsNamesInChatPool.filter(
+      (psnName) => this.currentRoom.persons[psnName].sex === false
+    );
+    if (femNamesInChatPool.length >= 1) {
+      const randomFemName = randomChoice(femNamesInChatPool);
+      const randomFem = this.currentRoom.persons[randomFemName];
+      if (randomFem.relationships[this.name] > 10) {
+        const attemptSuccess = randomChoice([true, false]);
+        console.log(`${this.name} has attempted success: ${attemptSuccess}`);
+        if (attemptSuccess) {
+          this.pairedUpWith = randomFemName;
+          randomFem.pairedUpWith = this.name;
+          // Abandon ChatPool
+          delete allChatPoolsObj[this.currentChatPool].members[this.name];
+          delete allChatPoolsObj[this.currentChatPool].members[randomFem.name];
+          this.currentChatPool = "";
+          randomFem.currentChatPool = "";
+          console.log(`${this.name} and ${randomFemName} are now paired up.`);
+        }
+      }
+    }
+  };
+
   evolveRelationship = (allChatPoolsObj) => {
     if (this.currentChatPool !== "") {
       const personsInChatPool = Object.keys(
@@ -141,18 +184,47 @@ class Person {
       ).filter((psn) => psn !== this.name);
       const randomPersonName = randomChoice(personsInChatPool);
       if (this.relationships[randomPersonName]) {
-        this.relationships[randomPersonName] += 2;
+        const result = randomChoiceProb(
+          [-2, -1, 1, 2, 3],
+          [0.15, 0.2, 0.3, 0.2, 0.15]
+        );
+        this.relationships[randomPersonName] += result;
+        if (this.relationships[randomPersonName] < 0) {
+          this.relationships[randomPersonName] = 0;
+        }
       } else {
-        this.relationships[randomPersonName] = 2;
+        this.relationships[randomPersonName] = 1;
+      }
+      this.attemptMove(personsInChatPool, allChatPoolsObj);
+    }
+  };
+
+  findBedRoom = (allRoomsObj, allPersonsObj) => {
+    if (this.pairedUpWith !== "" && this.currentRoom.locked === false) {
+      this.explore(allRoomsObj);
+      if (
+        this.currentRoom.currentOccupancy <= 1 &&
+        this.currentRoom.type === "bedroom"
+      ) {
+        this.currentRoom.locked = true;
+        const personPair = allPersonsObj[this.pairedUpWith];
+
+        personPair.currentRoom.currentOccupancy -= 1;
+        delete personPair.currentRoom.persons[personPair.name];
+
+        this.currentRoom.addDefaultPerson(personPair);
+        console.log(
+          `${this.name} has locked ${this.currentRoom.name} with ${personPair.name}.`
+        );
       }
     }
   };
 
-  beSocial = (allRoomsObj, allChatPoolsObj) => {
+  beSocial = (allRoomsObj, allChatPoolsObj, allPersonsObj) => {
     const personsInRoom = this.currentRoom.persons;
-    if (this.currentRoom.currentOccupancy <= 1) {
+    if (this.pairedUpWith === "" && this.currentRoom.currentOccupancy <= 1) {
       this.explore(allRoomsObj);
-    } else if (this.currentChatPool === "") {
+    } else if (this.pairedUpWith === "" && this.currentChatPool === "") {
       // Filter out persons who have rejected and who are not self
       this.chatCandidates = Object.keys(personsInRoom).filter(
         (name) =>
@@ -174,8 +246,10 @@ class Person {
       } else {
         this.explore(allRoomsObj);
       }
-    } else {
+    } else if (this.currentChatPool !== "") {
       this.evolveRelationship(allChatPoolsObj);
+    } else {
+      this.findBedRoom(allRoomsObj, allPersonsObj);
     }
   };
 }
@@ -193,35 +267,45 @@ class ChatPool {
 // SESSION DATA ---------------
 //    Assets
 const p = {
-  Rodrigo: new Person("Rodrigo", 29, true),
+  Carl: new Person("Carl", 29, true),
   Juan: new Person("Juan", 28, true),
   Manuel: new Person("Manuel", 29, true),
+  Kyara: new Person("Kyara", 25, false),
+  Sammy: new Person("Sammy", 22, false),
 };
 const r = {
-  outside: new Room("outside", 10, ["living", "dining"]),
-  living: new Room("living", 10, ["outside"]),
-  dining: new Room("dining", 10, ["outside", "kitchen"]),
-  kitchen: new Room("kitchen", 10, ["dining", "laundry"]),
-  laundry: new Room("laundry", 10, ["kitchen"]),
+  bedroom1: new Room("bedroom1", 4, "bedroom", ["hallway"]),
+  bedroom2: new Room("bedroom2", 4, "bedroom", ["hallway"]),
+  hallway: new Room("hallway", 10, "std", ["living", "bedroom1", "bedroom2"]),
+  living: new Room("living", 10, "std", ["hallway", "dining"]),
+  dining: new Room("dining", 10, "std", ["living", "kitchen", "terrace"]),
+  kitchen: new Room("kitchen", 10, "std", ["dining", "terrace"]),
+  terrace: new Room("terrace", 10, "std", ["kitchen", "dining"]),
 };
 const cp = {};
 //    Initial States
-r.outside.addDefaultPerson(p.Rodrigo);
-r.laundry.addDefaultPerson(p.Juan);
+r.kitchen.addDefaultPerson(p.Carl);
+r.terrace.addDefaultPerson(p.Juan);
 r.dining.addDefaultPerson(p.Manuel);
-// r.kitchen.locked = true;
+r.living.addDefaultPerson(p.Kyara);
+r.hallway.addDefaultPerson(p.Sammy);
+// r.laundry.locked = true;
 
 const main = () => {
-  console.log("Outside: ", r.outside.currentOccupancy);
-  console.log("Living: ", r.living.currentOccupancy);
-  console.log("Dining: ", r.dining.currentOccupancy);
-  console.log("Kitchen: ", r.kitchen.currentOccupancy);
-  console.log("Laundry: ", r.laundry.currentOccupancy);
-  console.log("Rod's Relationships: ", p.Rodrigo.relationships);
-  p.Rodrigo.beSocial(r, cp);
-  p.Juan.beSocial(r, cp);
-  p.Manuel.beSocial(r, cp);
-  console.log("ChatPools", cp);
+  console.log(
+    `Terrace: ${r.terrace.currentOccupancy} | Kitchen: ${r.kitchen.currentOccupancy} | Dining: ${r.dining.currentOccupancy} | Living: ${r.living.currentOccupancy} | Hallway: ${r.hallway.currentOccupancy} | Bedroom1: ${r.bedroom1.currentOccupancy} | Bedroom2: ${r.bedroom2.currentOccupancy}`
+  );
+  console.log("---");
+  console.log(
+    `Bedroom1 locked: ${r.bedroom1.locked} | Bedroom2 locked: ${r.bedroom2.locked}`
+  );
+  console.log("Kyara's Relationships: ", p.Kyara.relationships);
+  console.log("Sammy's Relationships: ", p.Sammy.relationships);
+  p.Carl.beSocial(r, cp, p);
+  p.Juan.beSocial(r, cp, p);
+  p.Manuel.beSocial(r, cp, p);
+  p.Kyara.beSocial(r, cp, p);
+  p.Sammy.beSocial(r, cp, p);
 
   console.log("-------------");
 };
