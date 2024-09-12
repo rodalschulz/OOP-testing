@@ -1,5 +1,7 @@
 // HOUSE PARTY SIM
 
+const { all } = require("express/lib/application");
+
 const randomChoice = (array) => {
   const randomIndex = Math.floor(Math.random() * array.length);
   return array[randomIndex];
@@ -76,6 +78,7 @@ class Person {
   chatCandidates = [];
   relationships = {};
   pairedUpWith = "";
+  satCounter = 0;
 
   constructor(name, age, sex) {
     this.name = name;
@@ -199,6 +202,21 @@ class Person {
     }
   };
 
+  evolveSat = (allPersonsObj) => {
+    if (this.currentRoom.locked && this.pairedUpWith) {
+      this.satCounter++;
+    }
+    if (this.satCounter > 12) {
+      this.satCounter = 0;
+      console.log(
+        `${this.name} and ${this.pairedUpWith} have come out of the locked room.`
+      );
+      allPersonsObj[this.pairedUpWith].pairedUpWith = "";
+      this.pairedUpWith = "";
+      this.currentRoom.locked = false;
+    }
+  };
+
   findBedRoom = (allRoomsObj, allPersonsObj) => {
     if (this.pairedUpWith !== "" && this.currentRoom.locked === false) {
       this.explore(allRoomsObj);
@@ -222,6 +240,11 @@ class Person {
 
   beSocial = (allRoomsObj, allChatPoolsObj, allPersonsObj) => {
     const personsInRoom = this.currentRoom.persons;
+    // reset rejections
+    if (globalCounter % 20 === 0) {
+      this.rejectedBy = {};
+    }
+
     if (this.pairedUpWith === "" && this.currentRoom.currentOccupancy <= 1) {
       this.explore(allRoomsObj);
     } else if (this.pairedUpWith === "" && this.currentChatPool === "") {
@@ -248,6 +271,7 @@ class Person {
       }
     } else if (this.currentChatPool !== "") {
       this.evolveRelationship(allChatPoolsObj);
+      this.evolveSat(allPersonsObj);
     } else {
       this.findBedRoom(allRoomsObj, allPersonsObj);
     }
@@ -291,7 +315,11 @@ r.living.addDefaultPerson(p.Kyara);
 r.hallway.addDefaultPerson(p.Sammy);
 // r.laundry.locked = true;
 
+let globalCounter = 0;
 const main = () => {
+  counter++;
+  console.log("GLOBAL COUNTER: ", counter);
+
   console.log(
     `Terrace: ${r.terrace.currentOccupancy} | Kitchen: ${r.kitchen.currentOccupancy} | Dining: ${r.dining.currentOccupancy} | Living: ${r.living.currentOccupancy} | Hallway: ${r.hallway.currentOccupancy} | Bedroom1: ${r.bedroom1.currentOccupancy} | Bedroom2: ${r.bedroom2.currentOccupancy}`
   );
