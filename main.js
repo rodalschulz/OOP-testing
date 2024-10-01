@@ -1,143 +1,68 @@
-// THIS IS JUST A DUMB COMMENT
+const randomChoiceProb = (array, probabilities) => {
+  if (array.length !== probabilities.length) {
+    throw new Error("Array and probabilities must have the same length.");
+  }
+  const sum = probabilities.reduce((acc, prob) => acc + prob, 0);
+  const tolerance = 1e-10;
+  if (Math.abs(sum - 1) > tolerance) {
+    throw new Error("Probabilities must sum up to 1.");
+  }
+
+  const random = Math.random();
+  let cumulativeProbability = 0;
+  for (let i = 0; i < array.length; i++) {
+    cumulativeProbability += probabilities[i];
+    if (random < cumulativeProbability) {
+      return array[i];
+    }
+  }
+};
 
 class Room {
-  persons = [];
-  totalPersons = 0;
-  full = false;
+  persons = {};
+  currentOccupancy = 0;
+  isFull = false;
+  isLocked = false;
 
-  constructor(name, maxPersons) {
+  constructor(name, maxCapacity, type, adjacentRooms) {
     this.name = name;
-    this.maxPersons = maxPersons;
+    this.maxCapacity = maxCapacity;
+    this.type = type;
+    this.adjacentRooms = adjacentRooms;
   }
 
-  addPerson = (person) => {
-    this.totalPersons = this.persons.length;
-    if (this.totalPersons < this.maxPersons) {
-      this.persons.push(person);
-      console.log(`${person.name} entered the room.`);
-      this.totalPersons += 1;
-      person.currentRoom = this; // HERE
-      if (this.totalPersons === this.maxPersons) {
-        this.full = true;
-        console.log(`${this.name} is now full.`);
-      }
-    }
-  };
+  addDefaultPerson = (person) => {};
 
-  personsInsideReport = () => {
-    const personsInside = this.persons.length;
-    console.log("-----------------------------------------");
-    console.log(`Current amount of persons in ${this.name}: `, personsInside);
-    const nameList = [];
-    for (const person of this.persons) {
-      nameList.push(person.name);
-    }
-    console.log(`List of persons inside the ${this.name}: `, nameList);
-    console.log("-----------------------------------------");
-  };
-
-  selectPerson = () => {
-    const randIdx = Math.floor(Math.random() * this.totalPersons);
-    const person = this.persons[randIdx];
-    console.log("Person selected: ", person.name);
-    return person;
-  };
+  processEntranceRequest = (person) => {};
 }
 
-class Person {
-  currentRoom = null;
-  chattingWith = null;
+class Agent {
+  full = 50;
+  rested = 50;
+  health = 50;
 
-  constructor(name, age, sex) {
+  constructor(name, sex, age) {
     this.name = name;
-    this.age = age;
     this.sex = sex;
+    this.age = age;
   }
 
-  greet = () => {
-    console.log(`It's me, ${this.name}`);
-  };
+  explore = () => {};
 
-  tryChat = () => {
-    if (this.chattingWith === null) {
-      let chosenPerson = null;
-      if (this.currentRoom.persons.length > 0) {
-        const randIdx = Math.floor(
-          Math.random() * this.currentRoom.totalPersons
-        );
-        chosenPerson = this.currentRoom.persons[randIdx];
-      }
-      console.log("Chosen Person: ", chosenPerson?.name);
-      if (
-        chosenPerson?.name === this.name ||
-        chosenPerson?.chattingWith !== null
-      )
-        return;
-      const zeroOrOne = Math.round(Math.random());
-      if (zeroOrOne === 1) {
-        this.chattingWith = chosenPerson;
-        chosenPerson.chattingWith = this;
-        console.log(`${this.name} and ${chosenPerson.name} are now chatting.`);
-      }
-    } else {
-      console.log("Person already chatting with someone");
-    }
-  };
+  lookForShelter = () => {};
+
+  rest = () => {};
+
+  eat = () => {};
+
+  lookForFood = () => {};
 }
-
-// SESSION CHARACTERISTICS
-const peopleData = [
-  ["Mario", 25, true],
-  ["Dylan", 28, true],
-  ["Max", 22, true],
-  ["Sandra", 21, false],
-  ["Lori", 24, false],
-  ["Mia", 23, false],
-];
-const invitedPeople = [];
-for (let human of peopleData) {
-  const person = new Person(human[0], human[1], human[2]);
-  invitedPeople.push(person);
-}
-
-const livingRoom = new Room("livingRoom", 5);
-
-// MAIN
-const main = () => {
-  // Arrivals
-  const invitedPeopleNames = [];
-  for (const person of invitedPeople) {
-    invitedPeopleNames.push(person.name);
-  }
-  console.log(
-    "People who haven't arrived or who are outside: ",
-    invitedPeopleNames
-  );
-
-  const totalPersonsInvited = invitedPeople.length;
-  const randInvitedPersonIdx = Math.floor(Math.random() * totalPersonsInvited);
-
-  const personArrival = invitedPeople[randInvitedPersonIdx];
-  if (livingRoom.full === false) {
-    invitedPeople.splice(randInvitedPersonIdx, 1);
-  }
-  livingRoom.addPerson(personArrival);
-  livingRoom.personsInsideReport();
-
-  // Select protagonist and try to chat
-  const protagonist = livingRoom.selectPerson();
-  protagonist.tryChat();
-
-  console.log("===================================================");
-  console.log("===================================================");
-  // CHOOSE A RANDOM MALE CHATTER
-};
 
 const timeOut = () => {
   setTimeout(() => {
     main();
     timeOut();
-  }, 2000);
+  }, 3000);
 };
 
 timeOut();
