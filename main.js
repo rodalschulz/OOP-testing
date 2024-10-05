@@ -18,36 +18,112 @@ const randomChoiceProb = (array, probabilities) => {
   }
 };
 
+const randomChoice = (array) => {
+  const randomIndex = Math.floor(Math.random() * array.length);
+  return array[randomIndex];
+};
+
 class Room {
-  persons = {};
+  agentIds = {};
+  squares = {};
   currentOccupancy = 0;
   isFull = false;
   isLocked = false;
 
-  constructor(name, maxCapacity, type, adjacentRooms) {
+  constructor(
+    id,
+    name,
+    maxCapacity,
+    type,
+    spaceArray,
+    rootSpawn,
+    adjacentRooms
+  ) {
+    this.id = id;
     this.name = name;
     this.maxCapacity = maxCapacity;
     this.type = type;
     this.adjacentRooms = adjacentRooms;
+    this.spaceArray = spaceArray;
+    this.rootSpawn = rootSpawn;
   }
 
-  addDefaultPerson = (person) => {};
+  addDefaultAgent = (agentId, allAgents) => {
+    if (this.agentIds[agentId]) {
+      console.log("Agent is already inside the room");
+      return;
+    } else if (
+      this.squares[this.rootSpawn] &&
+      this.squares[this.rootSpawn] !== ""
+    ) {
+      console.log("Someone is currently blocking the spawn point");
+      return;
+    } else {
+      this.agentIds[agentId] = true;
+      this.squares[this.rootSpawn] = agentId;
+      allAgents[agentId].currentRoomId = this.id;
+      allAgents[agentId].coordinates = this.rootSpawn;
+    }
+  };
 
-  processEntranceRequest = (person) => {};
+  processEntranceRequest = (agent) => {};
 }
 
 class Agent {
   full = 50;
   rested = 50;
   health = 50;
+  currentRoomId = "";
+  coordinates = "";
 
-  constructor(name, sex, age) {
+  constructor(id, name, sex, age) {
+    this.id = id;
     this.name = name;
     this.sex = sex;
     this.age = age;
   }
 
-  explore = () => {};
+  exist = (timeUnit) => {
+    this.full -= timeUnit;
+    this.rested -= timeUnit;
+    this.health -= timeUnit;
+  };
+
+  exploreRoom = (allRooms) => {
+    if (this.currentRoomId === "") {
+      console.log("Person is not in a room and therefore can't explore");
+      return;
+    }
+    const space = allRooms[this.currentRoomId].spaceArray;
+    const coordinatesParsed = JSON.parse(this.coordinates);
+    const spaceLength = space[0].length;
+    const spaceHeight = space.length;
+
+    const upCoord =
+      coordinatesParsed[0] - 1 >= 0
+        ? [coordinatesParsed[0] - 1, coordinatesParsed[1]]
+        : false;
+    const downCoord =
+      coordinatesParsed[0] + 1 <= spaceHeight - 1
+        ? [coordinatesParsed[0] + 1, coordinatesParsed[1]]
+        : false;
+    const leftCoord =
+      coordinatesParsed[1] - 1 >= 0
+        ? [coordinatesParsed[0], coordinatesParsed[1] - 1]
+        : false;
+    const rightCoord =
+      coordinatesParsed[1] + 1 <= spaceLength - 1
+        ? [coordinatesParsed[0], coordinatesParsed[1] + 1]
+        : false;
+
+    const adjacentSquares = [upCoord, downCoord, leftCoord, rightCoord];
+    const validAdjSquares = adjacentSquares.filter((coord) => coord);
+    const chosenCoords = randomChoice(validAdjSquares);
+    const chosenCoordsStr = JSON.stringify(chosenCoords);
+    allRooms[this.currentRoomId].squares[this.coordinates] = "";
+    this.coordinates = chosenCoordsStr;
+    allRooms[this.currentRoomId].squares[chosenCoordsStr] = this.id;
+  };
 
   lookForShelter = () => {};
 
@@ -58,11 +134,43 @@ class Agent {
   lookForFood = () => {};
 }
 
-const timeOut = () => {
-  setTimeout(() => {
-    main();
-    timeOut();
-  }, 3000);
+// Initializers
+const allRooms = {
+  0: new Room(
+    "0",
+    "base",
+    10,
+    "std",
+    [
+      [0, 0, 0],
+      ["D", 0, "R"],
+    ],
+    "[1,2]",
+    []
+  ),
+};
+const allAgents = { 1: new Agent("1", "Rod", 1, 30) };
+
+allRooms[0].addDefaultAgent(allAgents[1].id, allAgents);
+
+let globalTime = 0;
+const main = () => {
+  const timeUnit = 1;
+  globalTime = globalTime + timeUnit;
+  console.log(globalTime);
+
+  console.log("Rod's hunger: ", allAgents[1].full);
+  console.log("Current Rod's coordinates: ", allAgents[1].coordinates);
+  console.log("Base's Square Obj: ", allRooms[0].squares);
+  allAgents[1].exist(timeUnit);
+  allAgents[1].exploreRoom(allRooms);
 };
 
-timeOut();
+const roller = () => {
+  setTimeout(() => {
+    main();
+    roller();
+  }, 1000);
+};
+
+roller();
